@@ -22,6 +22,9 @@ from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 from mani_skill.trt_utils.trt_engine import TensorRTInfer
 from mani_skill import global_params
 
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
+
 @dataclass
 class Args:
     exp_name: Optional[str] = None
@@ -30,7 +33,7 @@ class Args:
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
-    cuda: bool = True
+    cuda: bool = False
     """if toggled, cuda will be enabled by default"""
     track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
@@ -38,7 +41,7 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = True
+    capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     save_model: bool = True
     """whether to save model into the `runs/{run_name}` folder"""
@@ -52,13 +55,13 @@ class Args:
     """path to a pretrained checkpoint file to start evaluation/training from"""
 
     # Algorithm specific arguments
-    env_id: str = "PushCube-v3"
+    env_id: str = "PushCube-v3-sb3"
     """the id of the environment"""
     total_timesteps: int = 10000000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 4
+    num_envs: int = 1
     """the number of parallel environments"""
     num_eval_envs: int = 1
     """the number of parallel evaluation environments"""
@@ -162,9 +165,8 @@ class NatureCNN(nn.Module):
 
         self.out_features = 0
         feature_size = 256
-        #print(sample_obs['rgbd'].shape)
-        in_channels = sample_obs["rgbd"].shape[-1]
-        image_size = (sample_obs["rgbd"].shape[1], sample_obs["rgbd"].shape[2])
+        in_channels = sample_obs["rgb"].shape[-1]
+        image_size = (sample_obs["rgb"].shape[1], sample_obs["rgb"].shape[2])
         state_size = sample_obs["state"].shape[-1]
 
         # here we use a NatureCNN architecture to process images, but any architecture is permissble here
@@ -190,9 +192,9 @@ class NatureCNN(nn.Module):
 
         # to easily figure out the dimensions after flattening, we pass a test tensor
         with torch.no_grad():
-            n_flatten = cnn(sample_obs["rgbd"].float().permute(0,3,1,2).cpu()).shape[1]
+            n_flatten = cnn(sample_obs["rgb"].float().permute(0,3,1,2).cpu()).shape[1]
             fc = nn.Sequential(nn.Linear(n_flatten, feature_size), nn.ReLU())
-        extractors["rgbd"] = nn.Sequential(cnn, fc)
+        extractors["rgb"] = nn.Sequential(cnn, fc)
         self.out_features += feature_size
 
         # for state data we simply pass it through a single linear layer
@@ -206,7 +208,7 @@ class NatureCNN(nn.Module):
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
             obs = observations[key]
-            if key == "rgbd":
+            if key == "rgb":
                 obs = obs.float().permute(0,3,1,2)
                 obs = obs / 255
             if next(self.parameters()).is_cuda:
@@ -268,11 +270,11 @@ if __name__ == "__main__":
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    # trt_engine = TensorRTInfer(
-    #     engine_path="/home/jianyu/jianyu/pythonproject/fadnet_jetson/test_ir.trt",
-    #     batch_size=args.num_envs
-    # )
-    global_params.TRT_ENGINE = None
+    trt_engine = TensorRTInfer(
+        engine_path="/home/jianyu/jianyu/pythonproject/fadnet_jetson/test_ir.trt",
+        batch_size=args.num_envs
+    )
+    global_params.TRT_ENGINE = trt_engine
 
     if args.exp_name is None:
         args.exp_name = os.path.basename(__file__)[: -len(".py")]
@@ -310,15 +312,21 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
-    # env setup
-    env_kwargs = dict(obs_mode="rgbd", control_mode="pd_joint_delta_pos", render_mode="sensors", sim_backend="gpu")
-    eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, **env_kwargs)
-    envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, **env_kwargs)
-    
-    # rgbd obs mode returns a dict of data, we flatten it so there is just a rgbd key and state key
-    envs = FlattenRGBDObservationWrapper(envs, rgb_only=False)
-    eval_envs = FlattenRGBDObservationWrapper(eval_envs, rgb_only=False)
 
+
+    # env setup
+    
+    env_kwargs = dict(obs_mode="rgbd", control_mode="pd_joint_delta_pos", render_mode="sensors", sim_backend="cpu")
+    envs = make_vec_env(args.env_id, n_envs=4, env_kwargs=env_kwargs)
+    eval_envs = make_vec_env(args.env_id, n_envs=1, env_kwargs=env_kwargs)
+
+    # assert 0
+    # eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, **env_kwargs)
+    # envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, **env_kwargs)
+
+    # rgbd obs mode returns a dict of data, we flatten it so there is just a rgbd key and state key
+    # envs = FlattenRGBDObservationWrapper(envs, rgb_only=True)
+    # eval_envs = FlattenRGBDObservationWrapper(eval_envs, rgb_only=True)
 
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
@@ -332,12 +340,15 @@ if __name__ == "__main__":
             save_video_trigger = lambda x : (x // args.num_steps) % args.save_train_video_freq == 0
             envs = RecordEpisode(envs, output_dir=f"runs/{run_name}/train_videos", save_trajectory=False, save_video_trigger=save_video_trigger, max_steps_per_video=args.num_steps, video_fps=30)
         eval_envs = RecordEpisode(eval_envs, output_dir=eval_output_dir, save_trajectory=args.evaluate, trajectory_name="trajectory", max_steps_per_video=args.num_eval_steps, video_fps=30)
-    envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=False, **env_kwargs)
-    eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=False, **env_kwargs)
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    # envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=False, **env_kwargs)
+    # eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=False, **env_kwargs)
+    assert isinstance(envs.envs[0].single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
+    print(envs.envs[0].single_observation_space)
+    print(len(envs.envs))
+    assert 0
     # ALGO Logic: Storage setup
-    obs = DictArray((args.num_steps, args.num_envs), envs.single_observation_space, device=device)
+    obs = DictArray((args.num_steps, args.num_envs), envs.envs[0].single_observation_space, device=device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)

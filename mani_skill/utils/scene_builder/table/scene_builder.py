@@ -82,7 +82,7 @@ class TableSceneBuilder(SceneBuilder):
             qpos[:, -2:] = 0.04
             self.env.agent.reset(qpos)
             self.env.agent.robot.set_pose(sapien.Pose([-0.615, 0, 0]))
-        elif self.env.robot_uids == "panda_wristcam":
+        elif self.env.robot_uids == "panda_wristcam" or self.env.robot_uids == "panda_wriststereocam" or self.env.robot_uids == "panda_wristactivestereocam":
             # fmt: off
             qpos = np.array(
                 [0.0, np.pi / 8, 0, -np.pi * 5 / 8, 0, np.pi * 3 / 4, -np.pi / 4, 0.04, 0.04]

@@ -111,7 +111,7 @@ class Camera(BaseSensor):
         articulation: Articulation = None,
     ):
         super().__init__(cfg=camera_cfg)
-
+        self.scene = scene
         self.camera_cfg = camera_cfg
 
         entity_uid = camera_cfg.entity_uid

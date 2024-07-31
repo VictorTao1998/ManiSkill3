@@ -155,6 +155,7 @@ class BaseEnv(gym.Env):
         sim_backend: str = "auto",
         parallel_gui_render_enabled: bool = False,
     ):
+
         self.num_envs = num_envs
         self.reconfiguration_freq = reconfiguration_freq if reconfiguration_freq is not None else 0
         self._reconfig_counter = 0
@@ -169,7 +170,7 @@ class BaseEnv(gym.Env):
         if physx.is_gpu_enabled() and num_envs == 1 and (sim_backend == "auto" or sim_backend == "cpu"):
             logger.warn("GPU simulation has already been enabled on this process, switching to GPU backend")
             sim_backend == "gpu"
-
+        print(physx.is_gpu_enabled(), sim_backend, num_envs)
         if num_envs > 1 or sim_backend == "gpu":
             if not physx.is_gpu_enabled():
                 physx.enable_gpu()
@@ -274,6 +275,7 @@ class BaseEnv(gym.Env):
             torch.zeros(self.num_envs, device=self.device, dtype=torch.int32)
         )
         obs, _ = self.reset(seed=2022, options=dict(reconfigure=True))
+
         self._init_raw_obs = common.to_cpu_tensor(obs)
         """the raw observation returned by the env.reset (a cpu torch tensor/dict of tensors). Useful for future observation wrappers to use to auto generate observation spaces"""
         self._init_raw_state = common.to_cpu_tensor(self.get_state_dict())
@@ -285,6 +287,7 @@ class BaseEnv(gym.Env):
         # initialize the cached properties
         self.single_observation_space
         self.observation_space
+
 
     def update_obs_space(self, obs: torch.Tensor):
         """call this function if you modify the observations returned by env.step and env.reset via an observation wrapper."""
@@ -729,7 +732,7 @@ class BaseEnv(gym.Env):
             self.scene.px.gpu_update_articulation_kinematics()
             self.scene._gpu_fetch_all()
         obs = self.get_obs()
-
+        
         return obs, dict(reconfigure=reconfigure)
 
     def _set_main_rng(self, seed):

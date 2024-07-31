@@ -16,9 +16,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 # ManiSkill specific imports
 import mani_skill.envs
-from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper, FlattenRGBDObservationWrapper
+from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper, FlattenRGBDObservationWrapper, FlattenRGBDObservationAsyncWrapper
 from mani_skill.utils.wrappers.record import RecordEpisode
-from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
+from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv, ManiSkillAsyncVectorEnv
 from mani_skill.trt_utils.trt_engine import TensorRTInfer
 from mani_skill import global_params
 
@@ -30,7 +30,7 @@ class Args:
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
-    cuda: bool = True
+    cuda: bool = False
     """if toggled, cuda will be enabled by default"""
     track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
@@ -38,7 +38,7 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = True
+    capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     save_model: bool = True
     """whether to save model into the `runs/{run_name}` folder"""
@@ -263,7 +263,7 @@ class Agent(nn.Module):
 if __name__ == "__main__":
     
     
-    
+    torch.multiprocessing.set_start_method('spawn')
     args = tyro.cli(Args)
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
@@ -311,12 +311,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    env_kwargs = dict(obs_mode="rgbd", control_mode="pd_joint_delta_pos", render_mode="sensors", sim_backend="gpu")
+    env_kwargs = dict(obs_mode="rgbd", control_mode="pd_joint_delta_pos", render_mode="sensors", sim_backend="cpu")
     eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, **env_kwargs)
-    envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, **env_kwargs)
+    # envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, **env_kwargs)
+    envs = gym.vector.AsyncVectorEnv([lambda: gym.make(args.env_id, **env_kwargs)]*(args.num_envs if not args.evaluate else 1))
     
     # rgbd obs mode returns a dict of data, we flatten it so there is just a rgbd key and state key
-    envs = FlattenRGBDObservationWrapper(envs, rgb_only=False)
+    envs = FlattenRGBDObservationAsyncWrapper(envs, rgb_only=False)
     eval_envs = FlattenRGBDObservationWrapper(eval_envs, rgb_only=False)
 
 
@@ -332,7 +333,7 @@ if __name__ == "__main__":
             save_video_trigger = lambda x : (x // args.num_steps) % args.save_train_video_freq == 0
             envs = RecordEpisode(envs, output_dir=f"runs/{run_name}/train_videos", save_trajectory=False, save_video_trigger=save_video_trigger, max_steps_per_video=args.num_steps, video_fps=30)
         eval_envs = RecordEpisode(eval_envs, output_dir=eval_output_dir, save_trajectory=args.evaluate, trajectory_name="trajectory", max_steps_per_video=args.num_eval_steps, video_fps=30)
-    envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=False, **env_kwargs)
+    envs = ManiSkillAsyncVectorEnv(envs, args.num_envs, ignore_terminations=False, **env_kwargs)
     eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=False, **env_kwargs)
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
@@ -380,7 +381,6 @@ if __name__ == "__main__":
             for _ in range(args.num_eval_steps):
                 with torch.no_grad():
                     eval_obs, _, eval_terminations, eval_truncations, eval_infos = eval_envs.step(agent.get_action(eval_obs, deterministic=True))
-
                     if "final_info" in eval_infos:
                         mask = eval_infos["_final_info"]
                         eps_lens.append(eval_infos["final_info"]["elapsed_steps"][mask].cpu().numpy())
@@ -420,6 +420,8 @@ if __name__ == "__main__":
         for step in range(0, args.num_steps):
             global_step += args.num_envs
             obs[step] = next_obs
+            if len(next_done.shape) == 2:
+                next_done = next_done[:,0]
             dones[step] = next_done
 
             # ALGO LOGIC: action logic
@@ -433,6 +435,7 @@ if __name__ == "__main__":
             next_obs, reward, terminations, truncations, infos = envs.step(action)
 
             next_done = torch.logical_or(terminations, truncations).to(torch.float32)
+            reward = torch.tensor(reward)
             rewards[step] = reward.view(-1)
 
             if "final_info" in infos:

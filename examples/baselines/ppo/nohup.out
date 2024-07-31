@@ -1,0 +1,18 @@
+2024-07-07 01:14:40.471191: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:479] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2024-07-07 01:14:40.489718: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:10575] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2024-07-07 01:14:40.489766: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1442] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2024-07-07 01:14:40.501688: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2024-07-07 01:14:41.082905: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+/home/jianyu/anaconda3/envs/maniskill3/lib/python3.9/site-packages/tyro/_fields.py:330: UserWarning: The field wandb_entity is annotated with type <class 'str'>, but the default value None has type <class 'NoneType'>. We'll try to handle this gracefully, but it may cause unexpected behavior.
+  warnings.warn(
+/home/jianyu/anaconda3/envs/maniskill3/lib/python3.9/site-packages/tyro/_fields.py:330: UserWarning: The field checkpoint is annotated with type <class 'str'>, but the default value None has type <class 'NoneType'>. We'll try to handle this gracefully, but it may cause unexpected behavior.
+  warnings.warn(
+[33;1m2024-07-07 01:14:43,155 - mani_skill  - WARNING - panda_wriststereocam is not in the task's list of supported robots. Code may not run as intended[0m
+[33;1m2024-07-07 01:14:45,676 - mani_skill  - WARNING - panda_wriststereocam is not in the task's list of supported robots. Code may not run as intended[0m
+/home/jianyu/anaconda3/envs/maniskill3/lib/python3.9/site-packages/gymnasium/core.py:311: UserWarning: [33mWARN: env.max_episode_steps to get variables from other wrappers is deprecated and will be removed in v1.0, to get this variable you can do `env.unwrapped.max_episode_steps` for environment variables or `env.get_wrapper_attr('max_episode_steps')` that will search the reminding wrappers.[0m
+  logger.warn(
+/home/jianyu/anaconda3/envs/maniskill3/lib/python3.9/site-packages/gymnasium/core.py:311: UserWarning: [33mWARN: env.single_observation_space to get variables from other wrappers is deprecated and will be removed in v1.0, to get this variable you can do `env.unwrapped.single_observation_space` for environment variables or `env.get_wrapper_attr('single_observation_space')` that will search the reminding wrappers.[0m
+  logger.warn(
+/home/jianyu/anaconda3/envs/maniskill3/lib/python3.9/site-packages/gymnasium/core.py:311: UserWarning: [33mWARN: env.single_action_space to get variables from other wrappers is deprecated and will be removed in v1.0, to get this variable you can do `env.unwrapped.single_action_space` for environment variables or `env.get_wrapper_attr('single_action_space')` that will search the reminding wrappers.[0m
+  logger.warn(
