@@ -237,6 +237,7 @@ class ManiSkillAsyncVectorEnv(VectorEnv):
         self, actions: Union[Array, Dict]
     ) -> Tuple[Array, Array, Array, Array, Dict]:
         obs, rew, terminations, truncations, infos = self._env.step(actions)
+        rew = torch.tensor(rew).squeeze()
         self.returns += rew
 
         infos["episode"] = dict(r=self.returns)
@@ -248,20 +249,23 @@ class ManiSkillAsyncVectorEnv(VectorEnv):
             )
         if isinstance(terminations, bool):
             terminations = torch.tensor([terminations], device=self.device)
-        terminations, truncations = torch.tensor(terminations), torch.tensor(truncations)
+        terminations, truncations = (torch.tensor(terminations).squeeze(),
+                                     torch.tensor(truncations).squeeze())
         if self.ignore_terminations:
             terminations[:] = False
-        
+
         dones = torch.logical_or(terminations, truncations)
         infos[
             "real_next_obs"
         ] = obs  # not part of standard API but makes some RL code slightly less complicated
+
         if dones.any():
             infos["episode"]["r"] = self.returns.clone()
             final_obs = obs
-            print(torch.arange(0, self.num_envs, device=self.device), dones)
             env_idx = torch.arange(0, self.num_envs, device=self.device)[dones]
-            obs, _ = self.reset(options=dict(env_idx=env_idx))
+            # obs, _ = self.reset(options=dict(env_idx=env_idx))
+            obs, _ = self.reset()
+
             infos["episode"]["_r"] = dones
             infos["final_info"] = infos.copy()
             # gymnasium calls it final observation but it really is just o_{t+1} or the true next observation

@@ -790,6 +790,7 @@ class BaseEnv(gym.Env):
         info = self.get_info()
         obs = self.get_obs(info)
         reward = self.get_reward(obs=obs, action=action, info=info)
+
         if "success" in info:
 
             if "fail" in info:

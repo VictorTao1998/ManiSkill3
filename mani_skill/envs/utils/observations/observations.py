@@ -122,9 +122,9 @@ def stereo_sensor_data_to_rgbd(
         del sensor_data["hand_camera_right"]
 
     # output = global_params.TRT_ENGINE.process(rgb_data_left, rgb_data_right)
-    out_path = "/home/jianyu/jianyu/pythonproject/ManiSkill3_Main/examples/baselines/ppo/runs/train_imgs"
-    for cuid in sensor_data:
-        if "depth" in sensor_data[cuid].keys():
+    # out_path = "/home/jianyu/jianyu/pythonproject/ManiSkill3_Main/examples/baselines/ppo/runs/train_imgs"
+    # for cuid in sensor_data:
+    #     if "depth" in sensor_data[cuid].keys():
             #stereo_disparity = torch.Tensor(output).to(sensor_data[cuid]["depth"].device)[...,None]
             #stereo_depth_raw = (0.03 * 357.60738000000003) / stereo_disparity
             #stereo_depth = (stereo_depth_raw*1000).type(torch.int16)
@@ -134,12 +134,12 @@ def stereo_sensor_data_to_rgbd(
             #stereo_disparity_cv = (stereo_disparity[0,:,:,0]/192.*255).type(torch.uint8)
             #stereo_disparity_cv = stereo_disparity_cv.cpu().numpy()
             # print(stereo_depth.shape)
-            tid = len(os.listdir(out_path))
-            os.makedirs(os.path.join(out_path, str(tid)))
+            # tid = len(os.listdir(out_path))
+            # os.makedirs(os.path.join(out_path, str(tid)))
             #imageio.imsave(os.path.join(out_path, str(tid), 'depth.png'), stereo_depth_cv)
             #imageio.imsave(os.path.join(out_path, str(tid), 'disparity.png'), stereo_disparity_cv)
-            imageio.imsave(os.path.join(out_path, str(tid), 'left.png'), rgb_data_left.cpu().numpy()[0,...])
-            imageio.imsave(os.path.join(out_path, str(tid), 'right.png'), rgb_data_right.cpu().numpy()[0,...])
+            # imageio.imsave(os.path.join(out_path, str(tid), 'left.png'), rgb_data_left.cpu().numpy()[0,...])
+            # imageio.imsave(os.path.join(out_path, str(tid), 'right.png'), rgb_data_right.cpu().numpy()[0,...])
             #pcd_pred = o3d.geometry.PointCloud()
             #intrinsic_l = [[357.60738000000003, 0., 384.],
             #               [0.,317.87322666666677,192.],

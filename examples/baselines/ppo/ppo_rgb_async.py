@@ -58,7 +58,7 @@ class Args:
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 4
+    num_envs: int = 16
     """the number of parallel environments"""
     num_eval_envs: int = 1
     """the number of parallel evaluation environments"""
@@ -439,9 +439,13 @@ if __name__ == "__main__":
             rewards[step] = reward.view(-1)
 
             if "final_info" in infos:
-                final_info = infos["final_info"]
+                final_info = infos["final_info"]['final_info']
+                if not final_info[0]:
+                    print("err")
+                final_info = {k: torch.cat([v[k] for v in final_info]) for k in final_info[0].keys()}
+
                 done_mask = infos["_final_info"]
-                episodic_return = final_info['episode']['r'][done_mask].mean().cpu().numpy()
+                episodic_return =infos['final_info']['episode']['r'][done_mask].mean().cpu().numpy()
                 writer.add_scalar("charts/success_rate", final_info["success"][done_mask].float().mean().cpu().numpy(), global_step)
                 writer.add_scalar("charts/episodic_return", episodic_return, global_step)
                 writer.add_scalar("charts/episodic_length", final_info["elapsed_steps"][done_mask].float().mean().cpu().numpy(), global_step)

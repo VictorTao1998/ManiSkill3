@@ -52,7 +52,7 @@ class Args:
     """path to a pretrained checkpoint file to start evaluation/training from"""
 
     # Algorithm specific arguments
-    env_id: str = "PushCube-v3"
+    env_id: str = "PushCube-v2"
     """the id of the environment"""
     total_timesteps: int = 10000000
     """total timesteps of the experiments"""
@@ -437,6 +437,7 @@ if __name__ == "__main__":
 
             if "final_info" in infos:
                 final_info = infos["final_info"]
+
                 done_mask = infos["_final_info"]
                 episodic_return = final_info['episode']['r'][done_mask].mean().cpu().numpy()
                 writer.add_scalar("charts/success_rate", final_info["success"][done_mask].float().mean().cpu().numpy(), global_step)
